@@ -48,7 +48,6 @@ def raspar_dados_eleitorais():
         response = requests.get(URL_ALVO, headers=headers, timeout=10)
         
         if response.status_code != 200:
-            logger.warning(f"O site retornou status {response.status_code}. Usando fallback.")
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -105,3 +104,7 @@ def obter_candidatos(uf: str = "br"):
         return _cache_dados["candidatos"]
         
     return FALLBACK_DATABASE
+
+# Função espelho exigida pelo seu main.py para evitar o erro de importação
+def buscar_dados_completos(uf: str = "br"):
+    return obter_candidatos(uf)
