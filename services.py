@@ -5,7 +5,7 @@ Contém a base de dados mapeada com os candidatos e seus respectivos links de im
 
 from typing import Dict, List, Optional
 
-# Dicionário central contendo os 13 candidatos presidenciais de 2026 e seus dados (incluindo URL da foto oficial)
+# Dicionário central contendo os 13 candidatos presidenciais de 2026 e seus dados
 CANDIDATOS_DATABASE: Dict[str, dict] = {
     "lula": {
         "nome": "Luiz Inácio Lula da Silva",
@@ -78,13 +78,12 @@ def listar_candidatos() -> List[dict]:
     """Retorna a lista completa com todos os candidatos cadastrados."""
     return [{"id": key, **value} for key, value in CANDIDATOS_DATABASE.items()]
 
-def obter_candidato_por_id(candidato_id: str) -> Optional[dict]:
-    """Busca um candidato específico pelo seu identificador único."""
-    candidato = CANDIDATOS_DATABASE.get(candidato_id)
-    if candidato:
-        return {"id": candidato_id, **candidato}
-    return None
-
-def buscar_dados_completos() -> List[dict]:
-    """Retorna todos os dados completos para o endpoint principal."""
-    return listar_candidatos()
+def buscar_dados_completos(uf: str = "br") -> dict:
+    """
+    Função principal chamada pelo main.py para retornar os dados consolidados da eleição.
+    """
+    return {
+        "uf": uf.upper(),
+        "eleicao_encerrada": False,
+        "candidatos": listar_candidatos()
+    }
