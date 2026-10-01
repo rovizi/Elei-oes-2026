@@ -1,67 +1,31 @@
-import requests
-from datetime import datetime
-from config import TSE_URL_OFICIAL, ANO_ELEICAO, CORES_VELAS
+# services.py
 
-def buscar_dados_completos(uf: str = "br"):
-    """
-    Controla a fonte de dados com base no momento:
-    - Antes do domingo / antes das 17h: Puxa o cenário de pesquisas registradas.
-    - Domingo a partir das 17h: Puxa a apuração real direto das urnas do TSE.
-    """
-    # Verifica se já estamos no domingo de eleição após as 17h (Horário aproximado de início da apuração)
-    # Ajuste a data/lógica conforme o dia exato do pleito
-    agora = datetime.now()
-    e_horario_de_apuracao = (agora.weekday() == 6 and agora.hour >= 17) # Domingo = 6
+ESTADO_SISTEMA = {
+    "eleicao_encerrada": False,
+    "percentual_apurado": 0.0
+}
 
-    if e_horario_de_apuracao:
-        # Tenta buscar dados reais do TSE
-        url = f"{TSE_URL_OFICIAL}/ele{ANO_ELEICAO}/air/uf/{uf.lower()}/br-c0001-e.json"
-        try:
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                dados_tse = response.json()
-                # Aqui você processa os dados reais do TSE
-                return processar_dados_tse(dados_tse)
-        except Exception:
-            pass
+def obter_dados_velas(uf: str = None):
+    # Lista oficial de candidatos à presidência para 2026
+    candidatos = [
+        {"posicao": 1, "nome": "Luiz Inácio Lula da Silva", "partido": "PT", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 2, "nome": "Flávio Nantes Bolsonaro", "partido": "PL", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 3, "nome": "Romeu Zema Neto", "partido": "NOVO", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 4, "nome": "Ronaldo Ramos Caiado", "partido": "PSD", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 5, "nome": "Renan Antônio Ferreira dos Santos", "partido": "MISSÃO", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 6, "nome": "Augusto Jorge Cury", "partido": "Avante", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 7, "nome": "Clariana Zacarkim Barão", "partido": "DC", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 8, "nome": "Edmilson Silva Costa", "partido": "PCB", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 9, "nome": "Hertz Da Conceição Dias", "partido": "PSTU", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 10, "nome": "Leonardo Alves De Araujo", "partido": "PRTB", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 11, "nome": "Rui Costa Pimenta", "partido": "PCO", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 12, "nome": "Samara Martins Da Silva Feitosa", "partido": "UP", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"},
+        {"posicao": 13, "nome": "Wilson Grassi Júnior", "partido": "DEMOCRATA", "votos_ou_media": "0.0%", "eleito": False, "foto_url": "https://via.placeholder.com/150"}
+    ]
 
-    # Se ainda não for o horário de apuração (ou se o TSE estiver offline), 
-    # entrega os dados consolidados de PESQUISAS ELEITORAIS com fotos e cores.
-    return obter_dados_pesquisas_atuais()
-
-def processar_dados_tse(dados_brutos):
-    """Processa o retorno real das urnas no domingo."""
-    # Retorno estruturado com base na apuração real do TSE
-    return dados_brutos
-
-def obter_dados_pesquisas_atuais():
-    """Retorna o painel baseado nas pesquisas eleitorais atuais (com fotos e partidos)."""
     return {
-        "fonte_dados": "Pesquisas Eleitorais Oficializadas",
-        "eleicao_encerrada": False,
-        "percentual_apurado": 0.0,
-        "candidatos": [
-            {
-                "posicao": 1,
-                "nome": "Candidato A",
-                "partido": "PTQ",
-                "votos_ou_media": "42% (Pesquisa)",
-                "percentual": 42.0,
-                "status_texto": "Liderando Pesquisas",
-                "cor_vela": CORES_VELAS["lider"],
-                "eleito": False,
-                "foto_url": "https://via.placeholder.com/150"
-            },
-            {
-                "posicao": 2,
-                "nome": "Candidato B",
-                "partido": "BLD",
-                "votos_ou_media": "38% (Pesquisa)",
-                "percentual": 38.0,
-                "status_texto": "Na Disputa",
-                "cor_vela": CORES_VELAS["segundo"],
-                "eleito": False,
-                "foto_url": "https://via.placeholder.com/150"
-            }
-        ]
+        "status_servico": "Oficializadas",
+        "eleicao_encerrada": ESTADO_SISTEMA["eleicao_encerrada"],
+        "percentual_apurado": ESTADO_SISTEMA["percentual_apurado"],
+        "candidatos": candidatos
     }
