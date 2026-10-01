@@ -10,7 +10,7 @@ CANDIDATOS_DATABASE: Dict[str, dict] = {
     "lula": {
         "nome": "Luiz Inácio Lula da Silva",
         "partido": "PT",
-        "foto_url": "https://p2.trrsf.com/image/fget/cf/1200/1200/middle/images.terra.com/2018/10/07/romeuzema-dynelle-coelho-qu4rto-studio.png",
+        "foto_url": "https://admin.cnnbrasil.com.br/wp-content/uploads/sites/12/candidates/2026/280002513904.jpg?w=161&h=225&crop=0&quality=100",
     },
     "flavio_bolsonaro": {
         "nome": "Flávio Bolsonaro",
@@ -20,7 +20,7 @@ CANDIDATOS_DATABASE: Dict[str, dict] = {
     "romeu_zema": {
         "nome": "Romeu Zema",
         "partido": "NOVO",
-        "foto_url": "https://p2.trrsf.com/image/fget/cf/1200/1200/middle/images.terra.com/2018/10/07/romeuzema-dynelle-coelho-qu4rto-studio.png",
+        "foto_url": "https://admin.cnnbrasil.com.br/wp-content/uploads/sites/12/candidates/2026/300002534571.jpg?w=161&h=225&crop=0&quality=100",
     },
     "ronaldo_caiado": {
         "nome": "Ronaldo Caiado",
@@ -84,6 +84,7 @@ def obter_candidato_por_id(candidato_id: str) -> Optional[dict]:
     if candidato:
         return {"id": candidato_id, **candidato}
     return None
-```eof
 
-Prontinho! Agora o código está no bloco padrão com o fundo escuro e o botão de copiar ativado. É só usar para atualizar o repositório!
+def buscar_dados_completos() -> List[dict]:
+    """Retorna todos os dados completos para o endpoint principal."""
+    return listar_candidatos()
