@@ -22,7 +22,7 @@ INFO_ELEICAO = {
     "dia_semana": "Domingo",
     "inicio_votacao": "08:00",
     "fim_votacao": "17:00 (Sujeito a tolerância de filas)",
-    "inicio_apuracao": "Imediatamente após o encerramento geral"
+    "inicio_apuracao": "Imediatamente após o encerramento geral das urnas"
 }
 
 DADOS_OFICIAIS_PADRAO = [
@@ -33,7 +33,7 @@ DADOS_OFICIAIS_PADRAO = [
         "posicao": 1,
         "percentual": 0.0,
         "votos": "0",
-        "status_texto": "VOTAÇÃO EM ANDAMENTO (AGUARDANDO FECHAMENTO DAS URNAS)",
+        "status_texto": "AGUARDANDO O DIA DA ELEIÇÃO",
         "cor_vela": "#CC0000",
         "foto_url": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Foto_oficial_de_Luiz_In%C3%A1cio_Luiz_da_Silva_%28ombros%29_denoise.jpg",
     },
@@ -44,7 +44,7 @@ DADOS_OFICIAIS_PADRAO = [
         "posicao": 2,
         "percentual": 0.0,
         "votos": "0",
-        "status_texto": "VOTAÇÃO EM ANDAMENTO (AGUARDANDO FECHAMENTO DAS URNAS)",
+        "status_texto": "AGUARDANDO O DIA DA ELEIÇÃO",
         "cor_vela": "#002D62",
         "foto_url": "https://admin.cnnbrasil.com.br/wp-content/uploads/sites/12/2025/12/O-senador-Flavio-Bolsonaro-e1765906268178.jpg?w=1200&h=1200&crop=1",
     }
@@ -59,8 +59,8 @@ def montar_resposta_espera(mensagem_status):
         
     return {
         "eleicao": INFO_ELEICAO,
-        "status_conexao": "VOTACAO_EM_ANDAMENTO",
-        "totalizacao": {"status_geral": "Votação em curso ou aguardando liberação dos boletins pelo TSE."},
+        "status_conexao": "AGUARDANDO_PLEITO",
+        "totalizacao": {"status_geral": "Contagem oficial iniciará após o encerramento da votação."},
         "candidatos": candidatos
     }
 
@@ -73,22 +73,43 @@ def buscar_dados_completos(uf: str = "br"):
 
     agora = datetime.now(FUSO_BR)
     
-    # Se nem for domingo, nem tenta o TSE, retorna espera padrão
-    eh_domingo = (agora.weekday() == 6) or (agora.year == 2026 and agora.month == 10 and agora.day == 4)
-    if not eh_domingo:
-        resposta = montar_resposta_espera("AGUARDANDO O DIA DA ELEIÇÃO (DOMINGO 04/10)")
+    # Validação automática baseada na data real de outubro de 2026
+    eh_sexta = (agora.year == 2026 and agora.month == 10 and agora.day == 2)
+    eh_vespera = (agora.year == 2026 and agora.month == 10 and agora.day == 3) # Sábado
+    eh_dia_eleicao = (agora.year == 2026 and agora.month == 10 and agora.day == 4) # Domingo
+
+    # Mensagens automáticas para os dias anteriores
+    if eh_sexta:
+        resposta = montar_resposta_espera("ELEIÇÃO NESTE DOMINGO (04/10/2026) — PREPARAÇÃO EM ANDAMENTO")
         _cache_dados["resposta_completa"] = resposta
         _cache_dados["timestamp"] = tempo_atual
         return resposta
 
-    # Se for domingo mas ainda estiver antes das 17h, garante votação
+    if eh_vespera: # Sábado
+        resposta = montar_resposta_espera("ELEIÇÃO É AMANHÃ (DOMINGO, 04/10) — TUDO PRONTO")
+        _cache_dados["resposta_completa"] = resposta
+        _cache_dados["timestamp"] = tempo_atual
+        return resposta
+
+    # Se não for nenhum dos dias previstos e nem domingo, mantém aviso padrão
+    if not eh_dia_eleicao and agora.weekday() != 6:
+        resposta = montar_resposta_espera("AGUARDANDO CRONOGRAMA OFICIAL DA ELEIÇÃO")
+        _cache_dados["resposta_completa"] = resposta
+        _cache_dados["timestamp"] = tempo_atual
+        return resposta
+
+    # ==========================================
+    # FLUXO DO DIA DA ELEIÇÃO (DOMINGO)
+    # ==========================================
+
+    # Se for antes das 17h, votação em andamento
     if agora.hour < 17:
-        resposta = montar_resposta_espera("VOTAÇÃO EM ANDAMENTO — URNAS ABERTAS")
+        resposta = montar_resposta_espera("VOTAÇÃO EM ANDAMENTO — URNAS ABERTAS ATÉ AS 17:00")
         _cache_dados["resposta_completa"] = resposta
         _cache_dados["timestamp"] = tempo_atual
         return resposta
 
-    # A partir das 17:00, consultamos o TSE para ver se os dados de apuração já foram liberados
+    # A partir das 17:00, consultamos o TSE para lidar com possíveis filas/atrasos e buscar dados reais
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         response = requests.get(URL_APURACAO_TSE, headers=headers, timeout=5)
@@ -100,7 +121,7 @@ def buscar_dados_completos(uf: str = "br"):
         cand_raw = data.get("cand", [])
         pst = data.get("pst", "0") 
         
-        # SEGURANÇA CONTRA ATRASOS: Se o TSE ainda não retornou candidatos com votos (indicando que a apuração não começou por atraso nas seções)
+        # SEGURANÇA CONTRA ATRASOS/FILAS: Se passou das 17h mas o TSE ainda não computou votos, a votação continua estendida
         tem_votos_computados = False
         if cand_raw:
             for item in cand_raw:
@@ -108,14 +129,13 @@ def buscar_dados_completos(uf: str = "br"):
                     tem_votos_computados = True
                     break
 
-        # Se passou das 17h mas o TSE ainda não computou votos (por causa de filas/atraso), a API continua informando que aguarda o encerramento
         if not tem_votos_computados:
-            resposta = montar_resposta_espera("VOTAÇÃO ESTENDIDA / AGUARDANDO PRIMEIROS VOTOS DO TSE")
+            resposta = montar_resposta_espera("VOTAÇÃO ESTENDIDA (FILAS) — AGUARDANDO PRIMEIROS VOTOS DO TSE")
             _cache_dados["resposta_completa"] = resposta
             _cache_dados["timestamp"] = tempo_atual
             return resposta
 
-        # Se chegou aqui, a apuração de fato começou! Processa os dados reais
+        # Apuração iniciada de fato! Processa os dados reais
         qtd_urnas_aptas = data.get("qu", "N/D")
         qtd_urnas_apuradas = data.get("qupt", "N/D")
         
@@ -179,7 +199,7 @@ def buscar_dados_completos(uf: str = "br"):
 
     except Exception as e:
         logger.error(f"Erro ao buscar TSE: {e}")
-        return montar_resposta_espera("AGUARDANDO LIBERAÇÃO OFICIAL DO TSE...")
+        return montar_resposta_espera("AGUARDANDO CONEXÃO COM O TSE...")
 
 def obter_candidatos(uf: str = "br"):
     res = buscar_dados_completos(uf)
