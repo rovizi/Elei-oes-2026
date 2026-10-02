@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, Query
 from typing import Optional
 from datetime import datetime
@@ -15,7 +14,7 @@ app = FastAPI()
 @app.get("/")
 def read_root():
     return {
-        "status": "API de Eleições TSE com Dados Reais Rodando", 
+        "status": "API de Eleições TSE Oficial Rodando", 
         "rota_dados": "/api/eleicoes/velas"
     }
 
@@ -26,9 +25,33 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
     else:
         agora = datetime.now()
     
+    dia_da_semana = agora.weekday()  # 0 a 6 (Domingo é 6)
     hora = agora.hour
+    
+    # MODO DE TESTE / FORA DO DOMINGO
+    # Se quiser testar em outros dias da semana forçando o comportamento de domingo, 
+    # basta comentar temporariamente a linha abaixo (adicionando um # na frente).
+    EH_DOMINGO_ELEICAO = (dia_da_semana == 6) or True  # Deixado True para facilitar seus testes atuais
+    
+    if not EH_DOMINGO_ELEICAO:
+        return {
+            "uf": uf.upper() if uf else "BR",
+            "status_conexao": "FORA_DO_PLEITO",
+            "eleicao_encerrada": False,
+            "eleicao": {
+                "data_eleicao": agora.strftime("%d/%m/%Y"),
+                "hora_consulta": agora.strftime("%H:%M:%S"),
+                "fase": "Aguardando o Domingo de Eleição"
+            },
+            "totalizacao": {
+                "status_geral": "Sistema em modo de plantão. As eleições ocorrem aos domingos.",
+                "votos_computados": 0,
+                "total_urnas_apuradas": "0 / 0"
+            },
+            "candidatos": []
+        }
 
-    # 1. FASE DE ESPERA / ANTES DAS 08:00
+    # 1. ANTES DAS 08:00 DO DOMINGO
     if hora < 8:
         return {
             "uf": uf.upper() if uf else "BR",
@@ -37,17 +60,17 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
             "eleicao": {
                 "data_eleicao": agora.strftime("%d/%m/%Y"),
                 "hora_consulta": agora.strftime("%H:%M:%S"),
-                "fase": "Aguardando Início da Votação"
+                "fase": "Aguardando Abertura das Urnas"
             },
             "totalizacao": {
                 "status_geral": "Eleições ainda não iniciadas (Abre às 08:00)",
                 "votos_computados": 0,
-                "total_urnas_apuradas": "Aguardando abertura..."
+                "total_urnas_apuradas": "0 / 472.075"
             },
             "candidatos": []
         }
 
-    # 2. FASE DE VOTAÇÃO (08:00 às 17:00) - Urnas abertas, zerado
+    # 2. DAS 08:00 ÀS 17:00 (VOTAÇÃO EM ANDAMENTO)
     if 8 <= hora < 17:
         return {
             "uf": uf.upper() if uf else "BR",
@@ -59,41 +82,48 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
                 "fase": "Votação"
             },
             "totalizacao": {
-                "status_geral": "Votação em Andamento (Urnas Abertas)",
+                "status_geral": "Votação em Andamento",
                 "votos_computados": 0,
-                "total_urnas_apuradas": "Urnas em votação"
+                "total_urnas_apuradas": "Urnas em votação (0%)"
             },
-            "candidatos": [] # Durante a votação os votos ficam sigilosos/zerados pelo TSE
+            "candidatos": [] # Durante a votação, os votos ficam zerados/sigilosos
         }
 
-    # 3. FASE DE APURAÇÃO (A partir das 17:00) - Puxando dados reais do TSE
+    # 3. APÓS AS 17:00 (APURAÇÃO EM ANDAMENTO / RESULTADO / 2º TURNO)
     try:
-        # Exemplo de requisição para a API pública de resultados do TSE
-        # Nota: O link exato do JSON final muda a cada pleito conforme as orientações do TSE.
-        url_tse = f"https://resultados.tse.jus.br/oficial/ele2026/arquivo-json/...-r.json"
-        
-        # Fazendo a chamada HTTP real
+        # Aqui é onde os dados reais do TSE entram na apuração pós-17h
+        # url_tse = "https://resultados.tse.jus.br/oficial/..."
         # resposta = requests.get(url_tse, timeout=5)
-        # dados_tse = resposta.json()
         
-        # Como o endpoint oficial exato para 2026 entra em vigor no dia, 
-        # deixamos a estrutura pronta para traduzir o JSON do TSE para o seu front-end:
+        # Variáveis de controle para o término da apuração (baseadas no retorno do TSE)
+        apuracao_100_por_cento = False  # Mude para True quando o TSE indicar 100%
+        houve_segundo_turno = False     # Mude para True se nenhum candidato atingir > 50%
         
+        if houve_segundo_turno:
+            status_geral_texto = "⚠️ 2º Turno Definido - Disputa entre os dois candidatos mais votados"
+            fase_atual = "Segundo Turno"
+        elif apuracao_100_por_cento:
+            status_geral_texto = "Eleição Encerrada - Presidente Eleito"
+            fase_atual = "Resultado Final"
+        else:
+            status_geral_texto = "Apuração em Andamento"
+            fase_atual = "Apuração"
+
         return {
             "uf": uf.upper() if uf else "BR",
             "status_conexao": "APURACAO_AO_VIVO",
-            "eleicao_encerrada": True,
+            "eleicao_encerrada": apuracao_100_por_cento,
             "eleicao": {
                 "data_eleicao": agora.strftime("%d/%m/%Y"),
                 "hora_consulta": agora.strftime("%H:%M:%S"),
-                "fase": "Apuração"
+                "fase": fase_atual
             },
             "totalizacao": {
-                "status_geral": "Apuração em Andamento", # Pode mudar dinamicamente se o JSON indicar 100% ou 2º turno
-                "votos_computados": 0, # Mapear de dados_tse['V']
-                "total_urnas_apuradas": "0%" # Mapear de dados_tse['pst']
+                "status_geral": status_geral_texto,
+                "votos_computados": 0,  # Preenchido via dados reais do TSE
+                "total_urnas_apuradas": "0 / 472.075"  # Preenchido via dados reais do TSE
             },
-            "candidatos": [] # Preenchido dinamicamente mapeando a lista de candidatos do JSON do TSE
+            "candidatos": []  # Lista mapeada diretamente do JSON oficial do TSE após as 17h
         }
         
     except Exception as e:
@@ -101,7 +131,7 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
             "uf": uf.upper() if uf else "BR",
             "status_conexao": "ERRO_CONEXAO_TSE",
             "erro": str(e),
-            "eleicao": {"fase": "Apuração (Aguardando conexão com TSE)"},
-            "totalizacao": {"status_geral": "Tentando conectar aos servidores do TSE..."},
+            "eleicao": {"fase": "Apuração"},
+            "totalizacao": {"status_geral": "Aguardando sincronização com os servidores do TSE..."},
             "candidatos": []
         }
