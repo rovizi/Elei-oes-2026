@@ -1,40 +1,23 @@
 from fastapi import FastAPI
-from services import buscar_dados_completos
+from fastapi.middleware.cors import CORSMiddleware
+from services import app as services_app
 
-app = FastAPI(
-    title="Eleições Brasil",
-    description="Acompanhamento visual em tempo real com velas dinâmicas, fotos, cores e congelamento automático pós-eleição.",
-    version="1.0.0"
+app = FastAPI(title="API de Eleições", version="1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Controle de estado para congelar a API ao fim da apuração
-ESTADO_SISTEMA = {
-    "congelado": False
-}
+app.mount("", services_app)
 
 @app.get("/")
-def home():
-    return {
-        "status": "Online",
-        "mensagem": "API Eleições Brasil pronta para rastrear pesquisas hoje e votos reais no domingo!"
-    }
+def root():
+    return {"message": "API rodando com sucesso no Render!"}
 
-@app.get("/api/eleicoes/velas")
-def get_velas(uf: str = "br"):
-    """
-    Retorna o painel com as velas dinâmicas, fotos e cores. 
-    Para de atualizar automaticamente assim que o vencedor é declarado.
-    """
-    if ESTADO_SISTEMA["congelado"]:
-        return {
-            "aviso": "A apuração foi encerrada e o resultado foi congelado.",
-            "dados_congelados": True
-        }
-
-    resultado = buscar_dados_completos(uf=uf)
-
-    # Se o sistema detectar que a apuração chegou a 100% e há um eleito definido, trava o sistema
-    if isinstance(resultado, dict) and resultado.get("eleicao_encerrada"):
-        ESTADO_SISTEMA["congelado"] = True
-
-    return resultado
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
