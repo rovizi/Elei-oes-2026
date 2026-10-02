@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Query
 from typing import Optional
 from datetime import datetime
+
 try:
     import pytz
     fuso_br = pytz.timezone("America/Sao_Paulo")
@@ -11,16 +12,12 @@ app = FastAPI()
 
 @app.get("/api/eleicoes/velas")
 def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
-    # Pega a hora atual considerando o fuso de Brasília se disponível
     if fuso_br:
         agora = datetime.now(fuso_br)
     else:
         agora = datetime.now()
     
-    # Define se a eleição já passou das 17h00
     eleicao_encerrada = agora.hour >= 17 
-    
-    # Altere para True caso queira testar o cenário de segundo turno manualmente
     houve_segundo_turno = False 
     
     if houve_segundo_turno:
