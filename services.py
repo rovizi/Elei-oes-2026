@@ -13,14 +13,14 @@ _cache_dados = {
 }
 TEMPO_CACHE = 120
 
-# Dicionário de fotos oficiais e cores garantidas por número/identificador do candidato
+# Dicionário fixo com as fotos oficiais exatas e cores oficiais de cada candidato
 FOTOS_E_CORES_OFICIAIS = {
     11: {
-        "foto_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400", # Exemplo de foto oficial ajustada
-        "cor_vela": "#00539F"
+        "foto_url": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Foto_oficial_de_Luiz_In%C3%A1cio_Lula_da_Silva_%28ombros%29_denoise.jpg",
+        "cor_vela": "#CC0000"
     },
     22: {
-        "foto_url": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400", # Exemplo de foto oficial ajustada
+        "foto_url": "https://upload.wikimedia.org/wikipedia/commons/3/30/Foto_oficial_do_senador_Fl%C3%A1vio_Bolsonaro_%28v._AgSen%29_%283x4%29.jpg",
         "cor_vela": "#002D62"
     }
 }
@@ -35,7 +35,7 @@ FALLBACK_DATABASE = [
         "votos": "45.120.300",
         "status_texto": "DADOS OFICIAIS (BASE TSE)",
         "cor_vela": "#CC0000",
-        "foto_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400",
+        "foto_url": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Foto_oficial_de_Luiz_In%C3%A1cio_Lula_da_Silva_%28ombros%29_denoise.jpg",
     },
     {
         "nome": "Flávio Bolsonaro",
@@ -46,7 +46,7 @@ FALLBACK_DATABASE = [
         "votos": "35.800.100",
         "status_texto": "DADOS OFICIAIS (BASE TSE)",
         "cor_vela": "#002D62",
-        "foto_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
+        "foto_url": "https://upload.wikimedia.org/wikipedia/commons/3/30/Foto_oficial_do_senador_Fl%C3%A1vio_Bolsonaro_%28v._AgSen%29_%283x4%29.jpg",
     }
 ]
 
@@ -68,12 +68,12 @@ def buscar_dados_reais_api():
         for index, item in enumerate(resultados[:2], start=1):
             nome = item.get("nome_urna") or item.get("nome_civil") or f"Candidato {index}"
             partido = item.get("partido_sigla") or "POL"
-            numero = 11 if index == 1 else 22  # Atribuindo número padrão para mapeamento
+            numero = 11 if index == 1 else 22
             
-            # Pega a foto e cor oficial segura mapeada por você, se houver
+            # Puxa a foto e a cor oficial correspondente ao candidato mapeado
             config_oficial = FOTOS_E_CORES_OFICIAIS.get(numero, {
                 "foto_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400",
-                "cor_vela": "#CC0000" if index == 1 else "#002D62"
+                "cor_vela": "#333333"
             })
 
             lista_candidatos.append({
