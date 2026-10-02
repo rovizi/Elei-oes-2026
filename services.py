@@ -1,24 +1,27 @@
 from fastapi import FastAPI, Query
 from typing import Optional
 from datetime import datetime
-import pytz
+try:
+    import pytz
+    fuso_br = pytz.timezone("America/Sao_Paulo")
+except ImportError:
+    fuso_br = None
 
 app = FastAPI()
 
-# Fuso horário de Brasília para garantir precisão no horário da eleição
-fuso_br = pytz.timezone("America/Sao_Paulo")
-
 @app.get("/api/eleicoes/velas")
 def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
-    agora = datetime.now(fuso_br)
+    # Pega a hora atual considerando o fuso de Brasília se disponível
+    if fuso_br:
+        agora = datetime.now(fuso_br)
+    else:
+        agora = datetime.now()
     
-    # Exemplo: Definindo o marco temporal da eleição (Domingo, 04/10/2026)
-    # Você pode ajustar a data conforme o dia exato do pleito
-    eleicao_encerrada = agora.hour >= 17 # Considera apuração após as 17h00
+    # Define se a eleição já passou das 17h00
+    eleicao_encerrada = agora.hour >= 17 
     
-    # 1. LÓGICA DE SEGUNDO TURNO (Ativada se a apuração encerrou e queremos simular/verificar)
-    # Aqui você pode colocar uma condição baseada em dados reais ou bandeira de controle
-    houve_segundo_turno = False # Mude para True se quiser testar o cenário de 2º turno
+    # Altere para True caso queira testar o cenário de segundo turno manualmente
+    houve_segundo_turno = False 
     
     if houve_segundo_turno:
         return {
@@ -61,7 +64,6 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
             ]
         }
 
-    # 2. LÓGICA DE APURAÇÃO EM ANDAMENTO OU ENCERRADA (1º Turno)
     status_geral_texto = "Apuração em Andamento" if eleicao_encerrada else "Votação em Andamento (Urnas Abertas)"
     
     return {
