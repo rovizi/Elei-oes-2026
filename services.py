@@ -28,10 +28,9 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
     dia_da_semana = agora.weekday()  # 0 a 6 (Domingo é 6)
     hora = agora.hour
     
-    # MODO DE TESTE / FORA DO DOMINGO
-    # Se quiser testar em outros dias da semana forçando o comportamento de domingo, 
-    # basta comentar temporariamente a linha abaixo (adicionando um # na frente).
-    EH_DOMINGO_ELEICAO = (dia_da_semana == 6) or True  # Deixado True para facilitar seus testes atuais
+    # MODO DE ESPERA ATÉ DOMINGO (Removido o "or True")
+    # Agora a API só entra em ação no domingo de eleição (dia 6)
+    EH_DOMINGO_ELEICAO = (dia_da_semana == 6)
     
     if not EH_DOMINGO_ELEICAO:
         return {
@@ -44,7 +43,7 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
                 "fase": "Aguardando o Domingo de Eleição"
             },
             "totalizacao": {
-                "status_geral": "Sistema em modo de plantão. As eleições ocorrem aos domingos.",
+                "status_geral": "Sistema em modo de plantão. Aguardando o domingo para iniciar.",
                 "votos_computados": 0,
                 "total_urnas_apuradas": "0 / 0"
             },
@@ -86,21 +85,17 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
                 "votos_computados": 0,
                 "total_urnas_apuradas": "Urnas em votação (0%)"
             },
-            "candidatos": [] # Durante a votação, os votos ficam zerados/sigilosos
+            "candidatos": []
         }
 
     # 3. APÓS AS 17:00 (APURAÇÃO EM ANDAMENTO / RESULTADO / 2º TURNO)
     try:
-        # Aqui é onde os dados reais do TSE entram na apuração pós-17h
-        # url_tse = "https://resultados.tse.jus.br/oficial/..."
-        # resposta = requests.get(url_tse, timeout=5)
-        
-        # Variáveis de controle para o término da apuração (baseadas no retorno do TSE)
-        apuracao_100_por_cento = False  # Mude para True quando o TSE indicar 100%
-        houve_segundo_turno = False     # Mude para True se nenhum candidato atingir > 50%
+        # Aqui entram os dados reais do TSE após as 17h de domingo
+        apuracao_100_por_cento = False  
+        houve_segundo_turno = False     
         
         if houve_segundo_turno:
-            status_geral_texto = "⚠️ 2º Turno Definido - Disputa entre os dois candidatos mais votados"
+            status_geral_texto = "⚠️ 2º Turno Definido"
             fase_atual = "Segundo Turno"
         elif apuracao_100_por_cento:
             status_geral_texto = "Eleição Encerrada - Presidente Eleito"
@@ -120,10 +115,10 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
             },
             "totalizacao": {
                 "status_geral": status_geral_texto,
-                "votos_computados": 0,  # Preenchido via dados reais do TSE
-                "total_urnas_apuradas": "0 / 472.075"  # Preenchido via dados reais do TSE
+                "votos_computados": 0,  
+                "total_urnas_apuradas": "0 / 472.075"  
             },
-            "candidatos": []  # Lista mapeada diretamente do JSON oficial do TSE após as 17h
+            "candidatos": []  
         }
         
     except Exception as e:
