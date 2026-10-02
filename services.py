@@ -35,6 +35,7 @@ DADOS_OFICIAIS_PADRAO = [
         "votos": "0",
         "status_texto": "AGUARDANDO O DIA DA ELEIÇÃO",
         "cor_vela": "#CC0000",
+        "cor_badge": "#F59E0B", # Amarelo para espera/preparação
         "foto_url": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Foto_oficial_de_Luiz_In%C3%A1cio_Luiz_da_Silva_%28ombros%29_denoise.jpg",
     },
     {
@@ -46,15 +47,17 @@ DADOS_OFICIAIS_PADRAO = [
         "votos": "0",
         "status_texto": "AGUARDANDO O DIA DA ELEIÇÃO",
         "cor_vela": "#002D62",
+        "cor_badge": "#F59E0B", # Amarelo para espera/preparação
         "foto_url": "https://admin.cnnbrasil.com.br/wp-content/uploads/sites/12/2025/12/O-senador-Flavio-Bolsonaro-e1765906268178.jpg?w=1200&h=1200&crop=1",
     }
 ]
 
-def montar_resposta_espera(mensagem_status):
+def montar_resposta_espera(mensagem_status, cor_badge="#F59E0B"):
     candidatos = []
     for c in DADOS_OFICIAIS_PADRAO:
         item = c.copy()
         item["status_texto"] = mensagem_status
+        item["cor_badge"] = cor_badge  # Aplica amarelo para espera ou verde para votação em andamento
         candidatos.append(item)
         
     return {
@@ -78,22 +81,21 @@ def buscar_dados_completos(uf: str = "br"):
     eh_vespera = (agora.year == 2026 and agora.month == 10 and agora.day == 3) # Sábado
     eh_dia_eleicao = (agora.year == 2026 and agora.month == 10 and agora.day == 4) # Domingo
 
-    # Mensagens automáticas para os dias anteriores
+    # Dias anteriores (Amarelo de aviso/preparação)
     if eh_sexta:
-        resposta = montar_resposta_espera("ELEIÇÃO NESTE DOMINGO (04/10/2026) — PREPARAÇÃO EM ANDAMENTO")
+        resposta = montar_resposta_espera("⚠️ ELEIÇÃO NESTE DOMINGO (04/10/2026) — PREPARAÇÃO EM ANDAMENTO", "#F59E0B")
         _cache_dados["resposta_completa"] = resposta
         _cache_dados["timestamp"] = tempo_atual
         return resposta
 
     if eh_vespera: # Sábado
-        resposta = montar_resposta_espera("ELEIÇÃO É AMANHÃ (DOMINGO, 04/10) — TUDO PRONTO")
+        resposta = montar_resposta_espera("⚠️ ELEIÇÃO É AMANHÃ (DOMINGO, 04/10) — TUDO PRONTO", "#F59E0B")
         _cache_dados["resposta_completa"] = resposta
         _cache_dados["timestamp"] = tempo_atual
         return resposta
 
-    # Se não for nenhum dos dias previstos e nem domingo, mantém aviso padrão
     if not eh_dia_eleicao and agora.weekday() != 6:
-        resposta = montar_resposta_espera("AGUARDANDO CRONOGRAMA OFICIAL DA ELEIÇÃO")
+        resposta = montar_resposta_espera("AGUARDANDO CRONOGRAMA OFICIAL DA ELEIÇÃO", "#F59E0B")
         _cache_dados["resposta_completa"] = resposta
         _cache_dados["timestamp"] = tempo_atual
         return resposta
@@ -102,26 +104,24 @@ def buscar_dados_completos(uf: str = "br"):
     # FLUXO DO DIA DA ELEIÇÃO (DOMINGO)
     # ==========================================
 
-    # Se for antes das 17h, votação em andamento
+    # Antes das 17h: VOTAÇÃO EM ANDAMENTO -> Fica em VERDE (#10B981)
     if agora.hour < 17:
-        resposta = montar_resposta_espera("VOTAÇÃO EM ANDAMENTO — URNAS ABERTAS ATÉ AS 17:00")
+        resposta = montar_resposta_espera("✅ VOTAÇÃO EM ANDAMENTO — URNAS ABERTAS ATÉ AS 17:00", "#10B981")
         _cache_dados["resposta_completa"] = resposta
         _cache_dados["timestamp"] = tempo_atual
         return resposta
 
-    # A partir das 17:00, consultamos o TSE para lidar com possíveis filas/atrasos e buscar dados reais
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         response = requests.get(URL_APURACAO_TSE, headers=headers, timeout=5)
         
         if response.status_code != 200:
-            return montar_resposta_espera("AGUARDANDO ENCERRAMENTO DE FILAS / LIBERAÇÃO DO TSE...")
+            return montar_resposta_espera("⚠️ AGUARDANDO ENCERRAMENTO DE FILAS / LIBERAÇÃO DO TSE...", "#F59E0B")
 
         data = response.json()
         cand_raw = data.get("cand", [])
         pst = data.get("pst", "0") 
         
-        # SEGURANÇA CONTRA ATRASOS/FILAS: Se passou das 17h mas o TSE ainda não computou votos, a votação continua estendida
         tem_votos_computados = False
         if cand_raw:
             for item in cand_raw:
@@ -129,13 +129,14 @@ def buscar_dados_completos(uf: str = "br"):
                     tem_votos_computados = True
                     break
 
+        # Se passou das 17h mas ainda tem filas (sem votos computados), continua em VERDE indicando votação estendida
         if not tem_votos_computados:
-            resposta = montar_resposta_espera("VOTAÇÃO ESTENDIDA (FILAS) — AGUARDANDO PRIMEIROS VOTOS DO TSE")
+            resposta = montar_resposta_espera("✅ VOTAÇÃO ESTENDIDA (FILAS) — AGUARDANDO PRIMEIROS VOTOS", "#10B981")
             _cache_dados["resposta_completa"] = resposta
             _cache_dados["timestamp"] = tempo_atual
             return resposta
 
-        # Apuração iniciada de fato! Processa os dados reais
+        # Apuração iniciada de fato!
         qtd_urnas_aptas = data.get("qu", "N/D")
         qtd_urnas_apuradas = data.get("qupt", "N/D")
         
@@ -169,8 +170,10 @@ def buscar_dados_completos(uf: str = "br"):
 
             if apuracao_concluida:
                 status_final = "PRESIDENTE ELEITO"
+                cor_badge_atual = "#10B981" # Verde para vencedor
             else:
                 status_final = f"APURAÇÃO AO VIVO — {info_totalizacao['status_geral']}"
+                cor_badge_atual = "#3B82F6" # Azul para apuração ao vivo
 
             lista_candidatos.append({
                 "nome": nome or original["nome"],
@@ -181,6 +184,7 @@ def buscar_dados_completos(uf: str = "br"):
                 "votos": f"{int(votos):,}".replace(",", ".") if votos else "0",
                 "status_texto": status_final,
                 "cor_vela": original["cor_vela"],
+                "cor_badge": cor_badge_atual,
                 "foto_url": original["foto_url"],
             })
 
@@ -199,7 +203,7 @@ def buscar_dados_completos(uf: str = "br"):
 
     except Exception as e:
         logger.error(f"Erro ao buscar TSE: {e}")
-        return montar_resposta_espera("AGUARDANDO CONEXÃO COM O TSE...")
+        return montar_resposta_espera("⚠️ AGUARDANDO CONEXÃO COM O TSE...", "#F59E0B")
 
 def obter_candidatos(uf: str = "br"):
     res = buscar_dados_completos(uf)
