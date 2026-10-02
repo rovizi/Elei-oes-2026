@@ -1,9 +1,9 @@
-from flask import Flask, jsonify
+from fastapi import FastAPI
 
-app = Flask(__name__)
+app = FastAPI()
 
+@app.route("/api/eleicoes/velas", methods=["GET"]) # Mantido para compatibilidade, ou use @app.get
 def buscar_dados_completos():
-    """Função chamada pelo main.py para retornar os dados da eleição"""
     return {
       "eleicao": {
         "data_eleicao": "04/10/2026",
@@ -42,9 +42,6 @@ def buscar_dados_completos():
       ]
     }
 
-@app.route('/api/eleicoes/velas', methods=['GET'])
+@app.get("/api/eleicoes/velas")
 def get_eleicoes_data():
-    return jsonify(buscar_dados_completos())
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    return buscar_dados_completos()
