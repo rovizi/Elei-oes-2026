@@ -2,9 +2,9 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-@app.route('/api/eleicoes/velas', methods=['GET'])
-def get_eleicoes_data():
-    dados = {
+def buscar_dados_completos():
+    """Função chamada pelo main.py para retornar os dados da eleição"""
+    return {
       "eleicao": {
         "data_eleicao": "04/10/2026",
         "dia_semana": "Domingo",
@@ -35,13 +35,16 @@ def get_eleicoes_data():
           "posicao": 2,
           "percentual": 0,
           "votos": "0",
-          "status_texto": "⚠️️ ELEIÇÃO NESTE DOMINGO (04/10/2026) — PREPARAÇÃO EM ANDAMENTO",
+          "status_texto": "⚠️ ELEIÇÃO NESTE DOMINGO (04/10/2026) — PREPARAÇÃO EM ANDAMENTO",
           "cor_vela": "#002D62",
           "cor_badge": "#F59E0B"
         }
       ]
     }
-    return jsonify(dados)
+
+@app.route('/api/eleicoes/velas', methods=['GET'])
+def get_eleicoes_data():
+    return jsonify(buscar_dados_completos())
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
