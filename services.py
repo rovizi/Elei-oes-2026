@@ -2,7 +2,6 @@ from fastapi import FastAPI
 
 app = FastAPI()
 
-@app.route("/api/eleicoes/velas", methods=["GET"]) # Mantido para compatibilidade, ou use @app.get
 def buscar_dados_completos():
     return {
       "eleicao": {
