@@ -18,20 +18,34 @@ def read_root():
         "rota_dados": "/api/eleicoes/velas"
     }
 
+def buscar_dados_tse_real(uf: str):
+    """
+    Faz a requisição real para a API pública de resultados do TSE.
+    """
+    try:
+        # Nota: O TSE publica os JSONs de resultados em servidores dedicados no dia da eleição.
+        # Substitua a URL abaixo pelo link exato do JSON de totalização do TSE do ano atual quando estiver ativo.
+        url_tse = f"https://resultados.tse.jus.br/oficial/ele2026/arquivo-json-exemplo-{uf.lower()}.json"
+        
+        response = requests.get(url_tse, timeout=5)
+        if response.status_code == 200:
+            return response.json()
+    except Exception:
+        pass
+    return None
+
 @app.get("/api/eleicoes/velas")
 def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
     if fuso_br:
         agora = datetime.now(fuso_br)
     else:
         agora = datetime.now()
-    
+        
     dia_da_semana = agora.weekday()  # 0 a 6 (Domingo é 6)
     hora = agora.hour
-    
-    # MODO DE ESPERA ATÉ DOMINGO (Removido o "or True")
-    # Agora a API só entra em ação no domingo de eleição (dia 6)
+        
     EH_DOMINGO_ELEICAO = (dia_da_semana == 6)
-    
+        
     if not EH_DOMINGO_ELEICAO:
         return {
             "uf": uf.upper() if uf else "BR",
@@ -88,11 +102,24 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
             "candidatos": []
         }
 
-    # 3. APÓS AS 17:00 (APURAÇÃO EM ANDAMENTO / RESULTADO / 2º TURNO)
+    # 3. APÓS AS 17:00 (APURAÇÃO EM ANDAMENTO / RESULTADO)
     try:
-        # Aqui entram os dados reais do TSE após as 17h de domingo
-        apuracao_100_por_cento = False  
-        houve_segundo_turno = False     
+        # Puxa os dados reais da função de requisição
+        dados_reais = buscar_dados_tse_real(uf)
+
+        if dados_reais:
+            apuracao_100_por_cento = dados_reais.get("eleicao_encerrada", False)
+            houve_segundo_turno = dados_reais.get("houve_segundo_turno", False)
+            votos_computados = dados_reais.get("votos_computados", 0)
+            total_urnas_apuradas = dados_reais.get("total_urnas_apuradas", "0 / 472.075")
+            lista_candidatos = dados_reais.get("candidatos", [])
+        else:
+            # Caso o TSE ainda não tenha respondido ou o link mude, mantém o padrão seguro
+            apuracao_100_por_cento = False
+            houve_segundo_turno = False
+            votos_computados = 0
+            total_urnas_apuradas = "0 / 472.075"
+            lista_candidatos = []
         
         if houve_segundo_turno:
             status_geral_texto = "⚠️ 2º Turno Definido"
@@ -115,10 +142,10 @@ def get_velas_api_eleicoes_velas_get(uf: Optional[str] = Query("BR")):
             },
             "totalizacao": {
                 "status_geral": status_geral_texto,
-                "votos_computados": 0,  
-                "total_urnas_apuradas": "0 / 472.075"  
+                "votos_computados": votos_computados,  
+                "total_urnas_apuradas": total_urnas_apuradas  
             },
-            "candidatos": []  
+            "candidatos": lista_candidatos  
         }
         
     except Exception as e:
